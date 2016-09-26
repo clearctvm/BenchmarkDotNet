@@ -9,7 +9,9 @@ using BenchmarkDotNet.Portability;
 
 namespace BenchmarkDotNet.Toolchains.Classic
 {
-    internal class RoslynGenerator : GeneratorBase
+	using System;
+
+	internal class RoslynGenerator : GeneratorBase
     {
         protected override string GetBuildArtifactsDirectoryPath(Benchmark benchmark, string programName)
             => Path.GetDirectoryName(benchmark.Target.Type.GetTypeInfo().Assembly.Location);
@@ -35,7 +37,8 @@ namespace BenchmarkDotNet.Toolchains.Classic
             list.Add("/unsafe");
             list.Add("/platform:" + benchmark.Job.Env.Platform.Resolve(resolver).ToConfig());
             list.Add("/appconfig:" + artifactsPaths.AppConfigPath.Escape());
-            var references = GetAllReferences(benchmark).Select(assembly => assembly.Location.Escape());
+            var references = GetAllReferences(benchmark)
+				.Select(assembly => assembly.Location.Escape());
             list.Add("/reference:" + string.Join(",", references));
             list.Add(Path.GetFileName(artifactsPaths.ProgramCodePath));
 
@@ -46,10 +49,18 @@ namespace BenchmarkDotNet.Toolchains.Classic
 
         internal static IEnumerable<Assembly> GetAllReferences(Benchmark benchmark)
         {
-            return benchmark.Target.Type.GetTypeInfo().Assembly
+	        var alwaysList = new[]
+	        {
+		        benchmark.Target.Type.GetTypeInfo().Assembly,
+		        Assembly.Load("BenchmarkDotNet"),
+		        Assembly.Load("BenchmarkDotNet.Core"),
+				Assembly.Load("BenchmarkDotNet.Diagnostics.Windows"), 
+	        };
+
+			return benchmark.Target.Type.GetTypeInfo().Assembly
                 .GetReferencedAssemblies()
                 .Select(Assembly.Load)
-                .Concat(new[] { benchmark.Target.Type.GetTypeInfo().Assembly });
+                .Concat(alwaysList);
         }
 
         private static void DelteIfExists(string filePath)
